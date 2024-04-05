@@ -1,0 +1,8 @@
+/.vs
+/packages
+/SimpleWebSockerServer.Console.Client/bin
+/SimpleWebSockerServer.Console.Client/obj
+/SimpleWebSockerServer.Console.Server/bin
+/SimpleWebSockerServer.Console.Server/obj
+/SimpleWebSocketServer/bin
+/SimpleWebSocketServer/obj
