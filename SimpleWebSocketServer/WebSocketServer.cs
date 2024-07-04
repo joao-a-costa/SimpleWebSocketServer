@@ -1,6 +1,9 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.WebSockets;
 using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace SimpleWebSocketServer
 {
@@ -11,10 +14,11 @@ namespace SimpleWebSocketServer
         private const string _MessageServerStarted = "Server started";
         private const string _MessageClientConnected = "WebSocket connected";
         private const string _MessageClientDisconnected = "WebSocket disconnected";
+        private const string _MessageSentMessageToClient = "Sent message to client";
         private const string _MessageReceivedMessageFromClient = "Received message from client";
-        private const string _MessageErrorReceivingMessageFromClient = "Error receiving message from client";
         private const string _MessageWebSocketError = "WebSocket error";
         private const string _MessageErrorSendingMessageToClient = "Error sending message to client";
+        private const string _MessageErrorReceivingMessageToClient = "Error receiving message from client";
 
         #endregion
 
@@ -23,11 +27,11 @@ namespace SimpleWebSocketServer
         /// <summary>
         /// The HttpListener object to listen for incoming HTTP requests
         /// </summary>
-        private HttpListener _httpListener;
+        private readonly HttpListener _httpListener;
         /// <summary>
         /// The WebSocket object to handle WebSocket communication
         /// </summary>
-        private WebSocket? _webSocket;
+        private WebSocket _webSocket;
 
         #endregion
 
@@ -36,28 +40,23 @@ namespace SimpleWebSocketServer
         /// <summary>
         /// Define an event to be raised when the server starts
         /// </summary>
-        public event EventHandler<string>? ServerStarted;
+        public event EventHandler<string> ServerStarted;
         /// <summary>
         /// Define an event to be raised when a message is received
         /// </summary>
-        public event EventHandler<string>? MessageReceived;
+        public event EventHandler<string> MessageReceived;
         /// <summary>
         /// Define an event to be raised when a client is connected
         /// </summary>
-        public event EventHandler<string>? ClientConnected;
+        public event EventHandler<string> ClientConnected;
         /// <summary>
         /// Define an event to be raised when a client is disconnected
         /// </summary>
-        public event EventHandler<string>? ClientDisconnected;
+        public event EventHandler<string> ClientDisconnected;
 
         #endregion
 
         #region "Properties"
-
-        /// <summary>
-        /// Define a property to enable/disable debug mode
-        /// </summary>
-        private bool DebugMode { get; set; } = false;
 
         #endregion
 
@@ -98,6 +97,33 @@ namespace SimpleWebSocketServer
             }
         }
 
+        public async Task SendMessageToClient(string message)
+        {
+            if (_webSocket?.State == WebSocketState.Open)
+            {
+                byte[] messageBytes = Encoding.UTF8.GetBytes(message);
+                await _webSocket.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                Log($"{_MessageSentMessageToClient}: {message}");
+            }
+            else
+            {
+                Log("WebSocket is not connected.");
+            }
+        }
+
+        #endregion
+
+        #region "Private"
+
+        /// <summary>
+        /// Method to log messages to the console
+        /// </summary>
+        /// <param name="message"></param>
+        private void Log(string message)
+        {
+            Console.WriteLine($"[{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}]{message}");
+        }
+
         /// <summary>
         /// The method to process the WebSocket request
         /// </summary>
@@ -105,7 +131,7 @@ namespace SimpleWebSocketServer
         /// <returns></returns>
         private async Task ProcessWebSocketRequest(HttpListenerContext context)
         {
-            HttpListenerWebSocketContext? webSocketContext = null;
+            HttpListenerWebSocketContext webSocketContext = null;
 
             try
             {
@@ -127,8 +153,7 @@ namespace SimpleWebSocketServer
             }
             finally
             {
-                if (webSocketContext != null)
-                    webSocketContext.WebSocket.Dispose();
+                webSocketContext?.WebSocket.Dispose();
 
                 OnClientDisconnected(_MessageClientDisconnected);
             }
@@ -146,7 +171,7 @@ namespace SimpleWebSocketServer
                 while (_webSocket?.State == WebSocketState.Open)
                 {
                     // Read input from the console
-                    string? input = Console.ReadLine();
+                    string input = Console.ReadLine();
 
                     if (!string.IsNullOrEmpty(input))
                     {
@@ -181,7 +206,7 @@ namespace SimpleWebSocketServer
 
                     // Process received message from the client
                     string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    Console.WriteLine($"{_MessageReceivedMessageFromClient}: {receivedMessage}");
+                    Log($"{_MessageReceivedMessageFromClient}: {receivedMessage}");
 
                     // Raise the event for message received
                     OnMessageReceived(receivedMessage);
@@ -189,23 +214,7 @@ namespace SimpleWebSocketServer
             }
             catch (Exception ex)
             {
-                Log($"Error receiving message from client: {ex.Message}");
-            }
-        }
-
-        #endregion
-
-        #region "Private"
-
-        /// <summary>
-        /// Method to log messages to the console
-        /// </summary>
-        /// <param name="message"></param>
-        private void Log(string message)
-        {
-            if (DebugMode)
-            {
-                Console.WriteLine(message);
+                Log($"{_MessageErrorReceivingMessageToClient}: {ex.Message}");
             }
         }
 

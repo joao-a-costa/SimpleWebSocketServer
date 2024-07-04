@@ -1,36 +1,46 @@
-﻿using SimpleWebSocketServer;
+﻿using System;
+using SimpleWebSocketServer;
 
-/// Define the WebSocket server prefix
-string prefix = "http://localhost:20005/";
-
-// Create an instance of WebSocketServer
-var server = new WebSocketServer(prefix);
-
-try
+namespace SimpleWebSockerServer.Console.Server
 {
-    /// Define an event to be raised when the server starts
-    server.ServerStarted += (sender, message) =>
+    internal static class Program
     {
-        Console.WriteLine($"{message}");
-    };
-    /// Define an event to be raised when a message is received
-    server.ClientConnected += (sender, message) =>
-    {
-        Console.WriteLine($"{message}");
-    };
-    /// Define an event to be raised when a message is received
-    server.MessageReceived += (sender, message) =>
-    {
-        Console.WriteLine($"{message}");
-    };
+        static void Main(string[] args)
+        {
+            /// Define the WebSocket server prefix
+            string prefix = "http://+:10005/";
 
-    // Start the WebSocket server
-    server.Start().Wait();
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Error occurred: {ex.Message}");
-}
+            // Create an instance of WebSocketServer
+            var server = new WebSocketServer(prefix);
 
-Console.WriteLine("Press any key to exit...");
-Console.ReadKey();
+            try
+            {
+                /// Define an event to be raised when the server starts
+                server.ServerStarted += (sender, message) =>
+                {
+                    System.Console.WriteLine($"{message}");
+                };
+                /// Define an event to be raised when a message is received
+                server.ClientConnected += (sender, message) =>
+                {
+                    System.Console.WriteLine($"{message}");
+                };
+                /// Define an event to be raised when a message is received
+                server.MessageReceived += (sender, message) =>
+                {
+                    System.Console.WriteLine($"{message}");
+                };
+
+                // Start the WebSocket server
+                server.Start().Wait();
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error occurred: {ex.Message}");
+            }
+
+            System.Console.WriteLine("Press any key to exit...");
+            System.Console.ReadKey();
+        }
+    }
+}
