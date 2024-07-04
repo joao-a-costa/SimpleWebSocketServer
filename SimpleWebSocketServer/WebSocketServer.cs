@@ -17,8 +17,12 @@ namespace SimpleWebSocketServer
         private const string _MessageSentMessageToClient = "Sent message to client";
         private const string _MessageReceivedMessageFromClient = "Received message from client";
         private const string _MessageWebSocketError = "WebSocket error";
+        private const string _MessageWebSocketConnectionClosedByClient = "WebSocket connection closed by client";
+        private const string _MessageClosing = "Closing";
+        private const string _MessageClosingDueToError = "Closing due to error";
         private const string _MessageErrorSendingMessageToClient = "Error sending message to client";
-        private const string _MessageErrorReceivingMessageToClient = "Error receiving message from client";
+        private const string _MessageErrorReceivingMessageFromClient = "Error receiving message from client";
+        private const string _MessageErrorConnectionClosedPrematurely = "Connection closed prematurely";
 
         #endregion
 
@@ -121,14 +125,9 @@ namespace SimpleWebSocketServer
         /// <param name="message"></param>
         private void Log(string message)
         {
-            Console.WriteLine($"[{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}]{message}");
+            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]{message}");
         }
 
-        /// <summary>
-        /// The method to process the WebSocket request
-        /// </summary>
-        /// <param name="context"></param>
-        /// <returns></returns>
         private async Task ProcessWebSocketRequest(HttpListenerContext context)
         {
             HttpListenerWebSocketContext webSocketContext = null;
@@ -138,12 +137,15 @@ namespace SimpleWebSocketServer
                 webSocketContext = await context.AcceptWebSocketAsync(subProtocol: null);
                 _webSocket = webSocketContext.WebSocket;
 
-                // Raise the event for message received
+                // Raise the event for client connected
                 OnClientConnected(_MessageClientConnected);
 
                 // Start echoing messages
-                await Task.WhenAll(Task.Run(() => SendConsoleInputToClient(_webSocket)), Task.Run(() => ReceiveMessagesFromClient(_webSocket)));
+                var sendTask = Task.Run(() => SendConsoleInputToClient(_webSocket));
+                var receiveTask = Task.Run(() => ReceiveMessagesFromClient(_webSocket));
 
+                // Wait for both tasks to complete
+                await Task.WhenAny(sendTask, receiveTask);
             }
             catch (Exception ex)
             {
@@ -153,7 +155,14 @@ namespace SimpleWebSocketServer
             }
             finally
             {
-                webSocketContext?.WebSocket.Dispose();
+                if (webSocketContext != null)
+                {
+                    if (webSocketContext.WebSocket.State == WebSocketState.Open)
+                    {
+                        await webSocketContext.WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, _MessageClosing, CancellationToken.None);
+                    }
+                    webSocketContext.WebSocket.Dispose();
+                }
 
                 OnClientDisconnected(_MessageClientDisconnected);
             }
@@ -201,8 +210,26 @@ namespace SimpleWebSocketServer
 
                 while (_webSocket?.State == WebSocketState.Open)
                 {
-                    // Receive message from the client
-                    WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    WebSocketReceiveResult result = null;
+                    try
+                    {
+                        // Receive message from the client
+                        result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    }
+                    catch (WebSocketException ex) when (ex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
+                    {
+                        // Handle the specific case where the connection is closed prematurely
+                        Log($"{_MessageErrorReceivingMessageFromClient}: {_MessageErrorConnectionClosedPrematurely}. {ex.Message}");
+                        break;
+                    }
+
+                    if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        // Close the WebSocket connection
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, _MessageClosing, CancellationToken.None);
+                        Log(_MessageWebSocketConnectionClosedByClient);
+                        break;
+                    }
 
                     // Process received message from the client
                     string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
@@ -214,7 +241,18 @@ namespace SimpleWebSocketServer
             }
             catch (Exception ex)
             {
-                Log($"{_MessageErrorReceivingMessageToClient}: {ex.Message}");
+                Log($"{_MessageErrorReceivingMessageFromClient}: {ex.Message}");
+            }
+            finally
+            {
+                // Ensure the WebSocket is closed
+                if (webSocket != null && webSocket.State == WebSocketState.Open)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.InternalServerError, _MessageClosingDueToError, CancellationToken.None);
+                }
+
+                // Dispose of the WebSocket
+                webSocket?.Dispose();
             }
         }
 
