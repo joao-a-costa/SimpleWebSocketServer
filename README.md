@@ -10,7 +10,7 @@ SimpleWebSocketServer is a C# implementation of a basic WebSocket server and cli
 
 ## Requirements
 
-- .NET Core 3.1 or higher
+- NET Standard 2.0 compatible framework
 
 ## Usage
 
