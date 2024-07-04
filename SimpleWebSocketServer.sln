@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34902.65
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleWebSocketServer", "SimpleWebSocketServer\SimpleWebSocketServer.csproj", "{15A31EFF-427C-4334-A3FE-E1D479ECB5A0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleWebSockerServer.Console.Server", "SimpleWebSockerServer.Console.Server\SimpleWebSockerServer.Console.Server.csproj", "{9E24193C-61BB-40A0-9AA5-F44C6683AD1B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleWebSockerServer.Console.Client", "SimpleWebSockerServer.Console.Client\SimpleWebSockerServer.Console.Client.csproj", "{F1674385-3357-4591-9DFC-E58C3B31B952}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{15A31EFF-427C-4334-A3FE-E1D479ECB5A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15A31EFF-427C-4334-A3FE-E1D479ECB5A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15A31EFF-427C-4334-A3FE-E1D479ECB5A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15A31EFF-427C-4334-A3FE-E1D479ECB5A0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E24193C-61BB-40A0-9AA5-F44C6683AD1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E24193C-61BB-40A0-9AA5-F44C6683AD1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E24193C-61BB-40A0-9AA5-F44C6683AD1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E24193C-61BB-40A0-9AA5-F44C6683AD1B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1674385-3357-4591-9DFC-E58C3B31B952}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1674385-3357-4591-9DFC-E58C3B31B952}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1674385-3357-4591-9DFC-E58C3B31B952}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1674385-3357-4591-9DFC-E58C3B31B952}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6B9CE858-CCE3-43C5-B055-0E44549A7CB7}
+	EndGlobalSection
+EndGlobal
