@@ -12,6 +12,7 @@ namespace SimpleWebSocketServer
         #region "Constants"
 
         private const string _MessageServerStarted = "Server started";
+        private const string _MessageServerStop = "Server stop";
         private const string _MessageClientConnected = "WebSocket connected";
         private const string _MessageClientDisconnected = "WebSocket disconnected";
         private const string _MessageSentMessageToClient = "Sent message to client";
@@ -23,6 +24,7 @@ namespace SimpleWebSocketServer
         private const string _MessageErrorSendingMessageToClient = "Error sending message to client";
         private const string _MessageErrorReceivingMessageFromClient = "Error receiving message from client";
         private const string _MessageErrorConnectionClosedPrematurely = "Connection closed prematurely";
+        private const string _MessageErrorWebSocketIsNotConnected = "WebSocket is not connected";
 
         #endregion
 
@@ -62,6 +64,11 @@ namespace SimpleWebSocketServer
 
         #region "Properties"
 
+        /// <summary>
+        /// Property to check if the server is started
+        /// </summary>
+        public bool IsStarted => _httpListener.IsListening;
+
         #endregion
 
         #region "Constructor"
@@ -80,27 +87,51 @@ namespace SimpleWebSocketServer
 
         #region "Public"
 
+        /// <summary>
+        /// Start the WebSocket server
+        /// </summary>
+        /// <returns>The task to start the server</returns>
         public async Task Start()
         {
             _httpListener.Start();
 
             OnServerStarted(_MessageServerStarted);
 
-            while (true)
+            HttpListenerContext context = await _httpListener.GetContextAsync();
+            if (context.Request.IsWebSocketRequest)
             {
-                HttpListenerContext context = await _httpListener.GetContextAsync();
-                if (context.Request.IsWebSocketRequest)
-                {
-                    await ProcessWebSocketRequest(context);
-                }
-                else
-                {
-                    context.Response.StatusCode = 400;
-                    context.Response.Close();
-                }
+                await ProcessWebSocketRequest(context);
+            }
+            else
+            {
+                context.Response.StatusCode = 400;
+                context.Response.Close();
             }
         }
 
+        /// <summary>
+        /// Stop the WebSocket server
+        /// </summary>
+        /// <returns>The task to stop the server</returns>
+        public async Task Stop()
+        {
+            if (_webSocket != null)
+                await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, _MessageClosing, CancellationToken.None);
+
+            if (IsStarted)
+            {
+                _httpListener.Stop();
+                _httpListener.Close();
+            }
+
+            Log(_MessageServerStop);
+        }
+
+        /// <summary>
+        /// Send a message to the client
+        /// </summary>
+        /// <param name="message">The message to send</param>
+        /// <returns>The task to send the message</returns>
         public async Task SendMessageToClient(string message)
         {
             if (_webSocket?.State == WebSocketState.Open)
@@ -111,7 +142,7 @@ namespace SimpleWebSocketServer
             }
             else
             {
-                Log("WebSocket is not connected.");
+                Log(_MessageErrorWebSocketIsNotConnected);
             }
         }
 
@@ -128,6 +159,11 @@ namespace SimpleWebSocketServer
             Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]{message}");
         }
 
+        /// <summary>
+        /// Process the WebSocket request
+        /// </summary>
+        /// <param name="context">The HttpListenerContext object</param>
+        /// <returns>The task to process the WebSocket request</returns>
         private async Task ProcessWebSocketRequest(HttpListenerContext context)
         {
             HttpListenerWebSocketContext webSocketContext = null;
