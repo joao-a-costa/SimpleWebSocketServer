@@ -6,3 +6,4 @@
 /SimpleWebSockerServer.Console.Server/obj
 /SimpleWebSocketServer/bin
 /SimpleWebSocketServer/obj
+/SimpleWebSocketServer/nugetPackagePush.cmd
