@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34902.65
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleWebSocketServer", "SimpleWebSocketServer\SimpleWebSocketServer.csproj", "{15A31EFF-427C-4334-A3FE-E1D479ECB5A0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SimpleWebSocketServer.Lib", "SimpleWebSocketServer\SimpleWebSocketServer.Lib.csproj", "{15A31EFF-427C-4334-A3FE-E1D479ECB5A0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleWebSockerServer.Console.Server", "SimpleWebSockerServer.Console.Server\SimpleWebSockerServer.Console.Server.csproj", "{9E24193C-61BB-40A0-9AA5-F44C6683AD1B}"
 EndProject

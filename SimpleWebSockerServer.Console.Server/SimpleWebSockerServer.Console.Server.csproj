@@ -50,9 +50,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SimpleWebSocketServer\SimpleWebSocketServer.csproj">
+    <ProjectReference Include="..\SimpleWebSocketServer\SimpleWebSocketServer.Lib.csproj">
       <Project>{15a31eff-427c-4334-a3fe-e1d479ecb5a0}</Project>
-      <Name>SimpleWebSocketServer</Name>
+      <Name>SimpleWebSocketServer.Lib</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

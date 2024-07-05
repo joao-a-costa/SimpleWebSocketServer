@@ -7,3 +7,5 @@
 /SimpleWebSocketServer/bin
 /SimpleWebSocketServer/obj
 /SimpleWebSocketServer/nugetPackagePush.cmd
+/SimpleWebSockerServer.Console.Client/.vs/SimpleWebSockerServer.Console.Client.csproj.dtbcache.json
+/SimpleWebSockerServer.Console.Server/.vs/SimpleWebSockerServer.Console.Server.csproj.dtbcache.json
