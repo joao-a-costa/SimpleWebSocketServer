@@ -25,6 +25,7 @@ namespace SimpleWebSocketServer
         private const string _MessageErrorReceivingMessageFromClient = "Error receiving message from client";
         private const string _MessageErrorConnectionClosedPrematurely = "Connection closed prematurely";
         private const string _MessageErrorWebSocketIsNotConnected = "WebSocket is not connected";
+        private const int _BufferSize = 2050;
 
         #endregion
 
@@ -68,6 +69,8 @@ namespace SimpleWebSocketServer
         /// Property to check if the server is started
         /// </summary>
         public bool IsStarted => _httpListener.IsListening;
+
+        public int BufferSize => _BufferSize;
 
         #endregion
 
@@ -242,7 +245,7 @@ namespace SimpleWebSocketServer
         {
             try
             {
-                byte[] buffer = new byte[1024];
+                byte[] buffer = new byte[BufferSize];
 
                 while (_webSocket?.State == WebSocketState.Open)
                 {
