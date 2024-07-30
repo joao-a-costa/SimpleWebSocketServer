@@ -25,6 +25,8 @@ namespace SimpleWebSocketServer
         private const string _MessageErrorReceivingMessageFromClient = "Error receiving message from client";
         private const string _MessageErrorConnectionClosedPrematurely = "Connection closed prematurely";
         private const string _MessageErrorWebSocketIsNotConnected = "WebSocket is not connected";
+        private const string _MessageHttpListenerException = "HttpListenerException";
+        private const string _MessageException = "Exception";
         private const int _BufferSize = 2050;
 
         #endregion
@@ -97,18 +99,39 @@ namespace SimpleWebSocketServer
         public async Task Start()
         {
             _httpListener.Start();
-
             OnServerStarted(_MessageServerStarted);
 
-            HttpListenerContext context = await _httpListener.GetContextAsync();
-            if (context.Request.IsWebSocketRequest)
+            while (true)
             {
-                await ProcessWebSocketRequest(context);
-            }
-            else
-            {
-                context.Response.StatusCode = 400;
-                context.Response.Close();
+                try
+                {
+                    HttpListenerContext context = await _httpListener.GetContextAsync();
+                    if (context.Request.IsWebSocketRequest)
+                    {
+                        await ProcessWebSocketRequest(context);
+                    }
+                    else
+                    {
+                        context.Response.StatusCode = 400;
+                        context.Response.Close();
+                    }
+                }
+                catch (HttpListenerException ex)
+                {
+                    // Handle the exception (e.g., log it or notify about the error)
+                    Console.WriteLine($"{_MessageHttpListenerException}: {ex.Message}");
+                    break; // Exit the loop if the listener stops
+                }
+                catch (TaskCanceledException)
+                {
+                    // This could occur when stopping the server, safely exit the loop
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    // Handle other exceptions
+                    Console.WriteLine($"{_MessageException}: {ex.Message}");
+                }
             }
         }
 
