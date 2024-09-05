@@ -203,11 +203,12 @@ namespace SimpleWebSocketServer
                 OnClientConnected(_MessageClientConnected);
 
                 // Start echoing messages
-                var sendTask = Task.Run(() => SendConsoleInputToClient(_webSocket));
+                //var sendTask = Task.Run(() => SendConsoleInputToClient(_webSocket));
                 var receiveTask = Task.Run(() => ReceiveMessagesFromClient(_webSocket));
 
                 // Wait for both tasks to complete
-                await Task.WhenAny(sendTask, receiveTask);
+                //await Task.WhenAny(sendTask, receiveTask);
+                await Task.WhenAny(receiveTask);
             }
             catch (Exception ex)
             {
