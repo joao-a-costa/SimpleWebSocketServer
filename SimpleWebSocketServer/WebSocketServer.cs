@@ -101,7 +101,7 @@ namespace SimpleWebSocketServer
             _httpListener.Start();
             OnServerStarted(_MessageServerStarted);
 
-            while (true)
+            while (_httpListener.IsListening)
             {
                 try
                 {
