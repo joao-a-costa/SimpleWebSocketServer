@@ -203,11 +203,10 @@ namespace SimpleWebSocketServer
                 OnClientConnected(_MessageClientConnected);
 
                 // Start echoing messages
-                var sendTask = Task.Run(() => SendConsoleInputToClient(_webSocket));
                 var receiveTask = Task.Run(() => ReceiveMessagesFromClient(_webSocket));
 
                 // Wait for both tasks to complete
-                await Task.WhenAny(sendTask, receiveTask);
+                await Task.WhenAny(receiveTask);
             }
             catch (Exception ex)
             {
@@ -293,12 +292,12 @@ namespace SimpleWebSocketServer
                         break;
                     }
 
-                    // Process received message from the client
-                    string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    Log($"{_MessageReceivedMessageFromClient}: {receivedMessage}");
+                    //// Process received message from the client
+                    //string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    //Log($"{_MessageReceivedMessageFromClient}: {receivedMessage}");
 
                     // Raise the event for message received
-                    OnMessageReceived(receivedMessage);
+                    OnMessageReceived(Encoding.UTF8.GetString(buffer, 0, result.Count));
                 }
             }
             catch (Exception ex)
