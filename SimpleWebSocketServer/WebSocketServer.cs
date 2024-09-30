@@ -4,6 +4,9 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Security.Cryptography.X509Certificates;
+using System.Diagnostics;
+using SimpleWebSocketServer.Lib.Utilities;
 
 namespace SimpleWebSocketServer
 {
@@ -16,12 +19,10 @@ namespace SimpleWebSocketServer
         private const string _MessageClientConnected = "WebSocket connected";
         private const string _MessageClientDisconnected = "WebSocket disconnected";
         private const string _MessageSentMessageToClient = "Sent message to client";
-        private const string _MessageReceivedMessageFromClient = "Received message from client";
         private const string _MessageWebSocketError = "WebSocket error";
         private const string _MessageWebSocketConnectionClosedByClient = "WebSocket connection closed by client";
         private const string _MessageClosing = "Closing";
         private const string _MessageClosingDueToError = "Closing due to error";
-        private const string _MessageErrorSendingMessageToClient = "Error sending message to client";
         private const string _MessageErrorReceivingMessageFromClient = "Error receiving message from client";
         private const string _MessageErrorConnectionClosedPrematurely = "Connection closed prematurely";
         private const string _MessageErrorWebSocketIsNotConnected = "WebSocket is not connected";
@@ -33,6 +34,10 @@ namespace SimpleWebSocketServer
 
         #region "Members"
 
+        /// <summary>
+        /// The prefix for the WebSocket server
+        /// </summary>
+        private readonly string _prefix;
         /// <summary>
         /// The HttpListener object to listen for incoming HTTP requests
         /// </summary>
@@ -72,7 +77,7 @@ namespace SimpleWebSocketServer
         /// </summary>
         public bool IsStarted => _httpListener.IsListening;
 
-        public int BufferSize => _BufferSize;
+        public static int BufferSize => _BufferSize;
 
         #endregion
 
@@ -84,8 +89,10 @@ namespace SimpleWebSocketServer
         /// <param name="prefix"></param>
         public WebSocketServer(string prefix)
         {
+            _prefix = prefix;
+
             _httpListener = new HttpListener();
-            _httpListener.Prefixes.Add(prefix);
+            _httpListener.Prefixes.Add(_prefix);
         }
 
         #endregion
@@ -172,6 +179,33 @@ namespace SimpleWebSocketServer
             }
         }
 
+        public async Task<bool> InstallCertificate(string certificatePath, string certificatePassword)
+        {
+            var res = false;
+
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var _certificateThumbprint = string.Empty;
+
+                    using (var _certificate = new X509Certificate2(certificatePath, certificatePassword))
+                    {
+                        _certificateThumbprint = _certificate.Thumbprint;
+                    }
+
+                    SslCertificate.InstallSslCertificate(certificatePath, certificatePassword);
+                    SslCertificate.BindSslCertificate(_prefix, _certificateThumbprint, Guid.NewGuid().ToString());
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine($"{_MessageException}: {ex.Message}");
+                }
+            });
+
+            return res;
+        }
+
         #endregion
 
         #region "Private"
@@ -180,7 +214,7 @@ namespace SimpleWebSocketServer
         /// Method to log messages to the console
         /// </summary>
         /// <param name="message"></param>
-        private void Log(string message)
+        private static void Log(string message)
         {
             Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]{message}");
         }
@@ -230,35 +264,6 @@ namespace SimpleWebSocketServer
         }
 
         /// <summary>
-        /// The method to send console input to the client
-        /// </summary>
-        /// <param name="webSocket"></param>
-        /// <returns></returns>
-        private async Task SendConsoleInputToClient(WebSocket webSocket)
-        {
-            try
-            {
-                while (_webSocket?.State == WebSocketState.Open)
-                {
-                    // Read input from the console
-                    string input = Console.ReadLine();
-
-                    if (!string.IsNullOrEmpty(input))
-                    {
-                        // Send input to the client
-                        byte[] inputBytes = Encoding.UTF8.GetBytes(input);
-                        await webSocket.SendAsync(new ArraySegment<byte>(inputBytes),
-                            WebSocketMessageType.Text, true, CancellationToken.None);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log($"{_MessageErrorSendingMessageToClient}: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// The method to receive messages from the client
         /// </summary>
         /// <param name="webSocket"></param>
@@ -291,10 +296,6 @@ namespace SimpleWebSocketServer
                         Log(_MessageWebSocketConnectionClosedByClient);
                         break;
                     }
-
-                    //// Process received message from the client
-                    //string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    //Log($"{_MessageReceivedMessageFromClient}: {receivedMessage}");
 
                     // Raise the event for message received
                     OnMessageReceived(Encoding.UTF8.GetString(buffer, 0, result.Count));
