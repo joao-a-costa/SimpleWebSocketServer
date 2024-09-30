@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace SimpleWebSocketServer.Console.Server
@@ -7,7 +8,9 @@ namespace SimpleWebSocketServer.Console.Server
     {
         #region "Constants"
 
-        private const string _WebSocketServerPrefix = "http://+:10005/";
+        private const int _WebSocketServerPrefixPort = 10005;
+        private const string _WebSocketServerPrefixHttp = "http";
+        private const string _WebSocketServerPrefixHttps = "https";
         private const string _MessageEnterJSONCommand = "Enter JSON command or 'q' to stop:";
         private const string _MessageErrorErrorOccurred = "Error occurred";
         private const string _MessageErrorProcessingJSON = "Error processing JSON";
@@ -22,10 +25,27 @@ namespace SimpleWebSocketServer.Console.Server
         /// The WebSocket server instance.
         /// </summary>
         private static WebSocketServer server;
+        /// <summary>
+        /// The flag indicating whether to use SSL.
+        /// </summary>
+        private static bool _useSsl = true;
 
         #endregion
 
         #region "Private Methods"
+
+        /// <summary>
+        /// Gets the certificate temporary path.
+        /// </summary>
+        /// <returns>The certificate temporary path.</returns>
+        private static string GetCertificateTempPath()
+        {
+            var tempFileName = Path.GetRandomFileName();
+
+            File.WriteAllBytes(tempFileName, SimpleWebSockerServer.Console.Server.Properties.Resources.HostSimulator);
+
+            return tempFileName;
+        }
 
         /// <summary>
         /// Listens for user input and sends the input to the WebSocket server.
@@ -71,14 +91,29 @@ namespace SimpleWebSocketServer.Console.Server
         static async Task Main(string[] args)
         {
             // Define the WebSocket server prefix
-            string prefix = _WebSocketServerPrefix;
+            var prefix = $"{(_useSsl ? _WebSocketServerPrefixHttps : _WebSocketServerPrefixHttp)}://+:{_WebSocketServerPrefixPort}/";
+            var certificateTempPath = string.Empty;
+            var certificateTempPathPassword = string.Empty;
 
-            // Create an instance of WebSocketServer
-            server = new WebSocketServer(prefix);
+            if (_useSsl)
+            {
+                certificateTempPath = GetCertificateTempPath();
+                certificateTempPathPassword = "mypass";
+
+                server = new WebSocketServer(prefix);
+            }
+            else
+            {
+                
+                server = new WebSocketServer(prefix);
+            }
 
             try
             {
                 System.Console.WriteLine(_MessageEnterJSONCommand);
+
+                if (_useSsl)
+                    await server.InstallCertificate(certificateTempPath, certificateTempPathPassword);
 
                 // Start the WebSocket server asynchronously
                 Task serverTask = server.Start();
@@ -99,6 +134,11 @@ namespace SimpleWebSocketServer.Console.Server
                 if (server.IsStarted)
                 {
                     await server.Stop();
+                }
+
+                if (File.Exists(certificateTempPath))
+                {
+                    File.Delete(certificateTempPath);
                 }
             }
 
