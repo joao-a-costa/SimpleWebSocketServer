@@ -67,6 +67,10 @@ namespace SimpleWebSocketServer
         /// Define an event to be raised when a client is disconnected
         /// </summary>
         public event EventHandler<string> ClientDisconnected;
+        /// <summary>
+        /// Define an event to be raised when a message related to installing a certificate is received
+        /// </summary>
+        public static event EventHandler<string> InstallCertificateMessage;
 
         #endregion
 
@@ -179,7 +183,7 @@ namespace SimpleWebSocketServer
             }
         }
 
-        public async Task<bool> InstallCertificate(string certificatePath, string certificatePassword)
+        public static async Task<bool> InstallCertificate(string prefix, string certificatePath, string certificatePassword)
         {
             var res = false;
 
@@ -187,24 +191,41 @@ namespace SimpleWebSocketServer
             {
                 try
                 {
-                    var _certificateThumbprint = string.Empty;
+                    InstallCertificateMessage?.Invoke(null, $"Installing certificate start{Environment.NewLine}{Environment.NewLine}");
 
-                    using (var _certificate = new X509Certificate2(certificatePath, certificatePassword))
+                    InstallCertificateMessage?.Invoke(null, $"Importing certificate start{Environment.NewLine}");
+                    var importCertificateResult = SslCertificate.ImportSslCertificate(certificatePath, certificatePassword);
+                    InstallCertificateMessage?.Invoke(null, importCertificateResult.Item2);
+                    InstallCertificateMessage?.Invoke(null, $"Importing certificate end {Environment.NewLine}{Environment.NewLine}");
+
+                    if (importCertificateResult.Item1)
                     {
-                        _certificateThumbprint = _certificate.Thumbprint;
+                        InstallCertificateMessage?.Invoke(null, $"Binding certificate start{Environment.NewLine}");
+                        InstallCertificateMessage?.Invoke(null,
+                            SslCertificate.BindSslCertificate(prefix,
+                                SslCertificate.GetSslCertificateThumbprint(certificatePath, certificatePassword),
+                                Guid.NewGuid().ToString()).Item2);
+                        InstallCertificateMessage?.Invoke(null, $"Binding certificate end{Environment.NewLine} {Environment.NewLine}");
                     }
 
-                    SslCertificate.InstallSslCertificate(certificatePath, certificatePassword);
-                    SslCertificate.BindSslCertificate(_prefix, _certificateThumbprint, Guid.NewGuid().ToString());
+                    res = true;
                 }
                 catch(Exception ex)
                 {
+                    InstallCertificateMessage?.Invoke(null, $"Installing certificate error. {_MessageException}: {ex.Message}");
                     Console.WriteLine($"{_MessageException}: {ex.Message}");
+                }
+                finally
+                {
+                    InstallCertificateMessage?.Invoke(null, $"Installing certificate end");
                 }
             });
 
             return res;
         }
+
+        public async Task<bool> InstallCertificate(string certificatePath, string certificatePassword) =>
+            await InstallCertificate(_prefix, certificatePath, certificatePassword);
 
         #endregion
 
