@@ -1,17 +1,21 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
 
 namespace SimpleWebSocketServer.Lib.Utilities
 {
     static internal class SslCertificate
     {
         /// <summary>
-        /// Installs an SSL certificate using the specified certificate path and password.
+        /// Imports an SSL certificate using the specified certificate path and password.
         /// </summary>
         /// <param name="certificatePath">The path to the certificate file.</param>
         /// <param name="certificatePathPassword">The password for the certificate file.</param>
-        public static void InstallSslCertificate(string certificatePath, string certificatePathPassword)
+        public static Tuple<bool, string> ImportSslCertificate(string certificatePath, string certificatePathPassword)
         {
+            var resSuccess = false;
+            var resSuccessMessage = string.Empty;
+
             try
             {
                 // Prepare the command to install the certificate
@@ -37,18 +41,25 @@ namespace SimpleWebSocketServer.Lib.Utilities
                     // Check for output or error
                     if (process.ExitCode == 0)
                     {
-                        Console.WriteLine($"Certificate installed successfully. Output: {output}");
+                        resSuccess = true;
+                        resSuccessMessage = $"Certificate imported successfully. Output: {output.Replace("\r\n", " ")}. {Environment.NewLine}";
                     }
                     else
                     {
-                        Console.WriteLine($"Error installing certificate. Error: {error}. Output: {output}");
+                        resSuccessMessage = $"Error importing certificate. Error: {error}. Output: {output.Replace("\r\n", " ")}. {Environment.NewLine}";
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Exception occurred: {ex.Message}");
+                resSuccessMessage = $"Exception occurred: {ex.Message}";
             }
+            finally
+            {
+                Console.WriteLine(resSuccessMessage);
+            }
+
+            return Tuple.Create(resSuccess, resSuccessMessage);
         }
 
         /// <summary>
@@ -92,8 +103,11 @@ namespace SimpleWebSocketServer.Lib.Utilities
         /// </summary>
         /// <param name="ip">The IP address to delete.</param>
         /// <param name="port">The port number to delete.</param>
-        public static void DeleteSslCertificateBinding(string ip, int port)
+        public static Tuple<bool, string> DeleteSslCertificateBinding(string ip, int port)
         {
+            var resSuccess = false;
+            var resSuccessMessage = string.Empty;
+
             string command = $"http delete sslcert ipport={ip}:{port}";
 
             ProcessStartInfo processInfo = new ProcessStartInfo("netsh", command)
@@ -115,18 +129,25 @@ namespace SimpleWebSocketServer.Lib.Utilities
 
                     if (process.ExitCode == 0)
                     {
-                        Console.WriteLine($"Existing SSL certificate binding deleted successfully. Output: {output}");
+                        resSuccess = true;
+                        resSuccessMessage = $"Existing SSL certificate binding deleted successfully. Output: {output.Replace("\r\n", " ")}. {Environment.NewLine}";
                     }
                     else
                     {
-                        Console.WriteLine($"Error deleting certificate binding. Error: {error}. Output: {output}");
+                        resSuccessMessage = $"Error deleting certificate binding. Error: {error}. Output: {output.Replace("\r\n", " ")}. {Environment.NewLine}";
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Exception occurred: {ex.Message}");
+                resSuccessMessage = $"Exception occurred: {ex.Message}";
             }
+            finally
+            {
+                Console.WriteLine(resSuccessMessage);
+            }
+
+            return Tuple.Create(resSuccess, resSuccessMessage);
         }
 
         /// <summary>
@@ -135,8 +156,11 @@ namespace SimpleWebSocketServer.Lib.Utilities
         /// <param name="prefix">The IP and port to bind the certificate to.</param>
         /// <param name="certHash">The hash of the certificate to bind.</param>
         /// <param name="appId">The application ID for the certificate.</param>
-        public static void BindSslCertificate(string prefix, string certHash, string appId)
+        public static Tuple<bool, string> BindSslCertificate(string prefix, string certHash, string appId)
         {
+            var resSuccess = false;
+            var resSuccessMessage = string.Empty;
+
             var ipPort = GetIpAndPort(prefix);
 
             // Check if the SSL certificate binding already exists
@@ -172,18 +196,37 @@ namespace SimpleWebSocketServer.Lib.Utilities
                     // Check if the command was successful
                     if (process.ExitCode == 0)
                     {
-                        Console.WriteLine($"SSL certificate bound successfully. Output: {output}");
+                        resSuccess = true;
+                        resSuccessMessage = $"SSL certificate bound successfully. Output: {output.Replace("\r\n", " ")}. {Environment.NewLine}";
                     }
                     else
                     {
-                        Console.WriteLine($"Error binding certificate. Error: {error}. Output: {output}");
+                        resSuccessMessage = $"Error importing certificate. Error: {error}. Output: {output.Replace("\r\n", " ")}. {Environment.NewLine}";
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Exception occurred: {ex.Message}");
+                resSuccessMessage = $"Exception occurred: {ex.Message}";
             }
+            finally
+            {
+                Console.WriteLine(resSuccessMessage);
+            }
+
+            return Tuple.Create(resSuccess, resSuccessMessage);
+        }
+
+        public static string GetSslCertificateThumbprint(string certificatePath, string certificatePathPassword)
+        {
+            var certificateThumbprint = string.Empty;
+
+            using (var _certificate = new X509Certificate2(certificatePath, certificatePathPassword))
+            {
+                certificateThumbprint = _certificate.Thumbprint;
+            }
+
+            return certificateThumbprint;
         }
 
         /// <summary>
