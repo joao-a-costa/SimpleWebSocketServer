@@ -183,7 +183,8 @@ namespace SimpleWebSocketServer
             }
         }
 
-        public static async Task<bool> InstallCertificate(string prefix, string certificatePath, string certificatePassword)
+        public static async Task<bool> InstallCertificate(string prefix, string certificatePath, string certificatePassword, string appId,
+            string certHash)
         {
             var res = false;
 
@@ -194,7 +195,7 @@ namespace SimpleWebSocketServer
                     InstallCertificateMessage?.Invoke(null, $"Installing certificate start{Environment.NewLine}{Environment.NewLine}");
 
                     InstallCertificateMessage?.Invoke(null, $"Importing certificate start{Environment.NewLine}");
-                    var importCertificateResult = SslCertificate.ImportSslCertificate(certificatePath, certificatePassword);
+                    var importCertificateResult = SslCertificate.ImportSslCertificate(certificatePath, certificatePassword, prefix, certHash, appId );
                     InstallCertificateMessage?.Invoke(null, importCertificateResult.Item2);
                     InstallCertificateMessage?.Invoke(null, $"Importing certificate end {Environment.NewLine}{Environment.NewLine}");
 
@@ -202,13 +203,11 @@ namespace SimpleWebSocketServer
                     {
                         InstallCertificateMessage?.Invoke(null, $"Binding certificate start{Environment.NewLine}");
                         InstallCertificateMessage?.Invoke(null,
-                            SslCertificate.BindSslCertificate(prefix,
-                                SslCertificate.GetSslCertificateThumbprint(certificatePath, certificatePassword),
-                                Guid.NewGuid().ToString()).Item2);
+                            SslCertificate.BindSslCertificate(prefix, certHash, appId).Item2);
                         InstallCertificateMessage?.Invoke(null, $"Binding certificate end{Environment.NewLine} {Environment.NewLine}");
-                    }
 
-                    res = true;
+                        res = true;
+                    }
                 }
                 catch(Exception ex)
                 {
@@ -224,8 +223,8 @@ namespace SimpleWebSocketServer
             return res;
         }
 
-        public async Task<bool> InstallCertificate(string certificatePath, string certificatePassword) =>
-            await InstallCertificate(_prefix, certificatePath, certificatePassword);
+        public async Task<bool> InstallCertificate(string certificatePath, string certificatePassword, string appId, string certificateThumbprint) =>
+            await InstallCertificate(_prefix, certificatePath, certificatePassword, appId, certificateThumbprint);
 
         #endregion
 
