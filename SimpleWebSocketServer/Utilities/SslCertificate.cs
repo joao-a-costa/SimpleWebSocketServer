@@ -1,17 +1,42 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
+using System.Resources;
 using System.Security.Cryptography.X509Certificates;
 
 namespace SimpleWebSocketServer.Lib.Utilities
 {
     static internal class SslCertificate
     {
+
+        private static string BuildInstallCertificateFile(string certificatePath, string certificatePathPassword,
+            string prefix, string certHash, string appId)
+        {
+            var ipPort = GetIpAndPort(prefix);
+
+            string commandBase =
+                $"certutil -f -p {certificatePathPassword} -importpfx \"{Path.GetFullPath(certificatePath)}\"{Environment.NewLine}" +
+                $"netsh http delete sslcert ipport={ipPort.ip}:{ipPort.port}{Environment.NewLine}" +
+                $"netsh http add sslcert ipport={ipPort.ip}:{ipPort.port} certhash={certHash} appid={{{appId}}}{Environment.NewLine}" +
+                $"pause";
+
+            var tempFileName = Guid.NewGuid().ToString() + ".bat";
+
+            if (File.Exists(tempFileName))
+                File.Delete(tempFileName);
+
+            File.WriteAllText(tempFileName, commandBase);
+
+            return tempFileName;
+        }
+
         /// <summary>
         /// Imports an SSL certificate using the specified certificate path and password.
         /// </summary>
         /// <param name="certificatePath">The path to the certificate file.</param>
         /// <param name="certificatePathPassword">The password for the certificate file.</param>
-        public static Tuple<bool, string> ImportSslCertificate(string certificatePath, string certificatePathPassword)
+        public static Tuple<bool, string> ImportSslCertificate(string certificatePath, string certificatePathPassword,
+            string prefix, string certHash, string appId)
         {
             var resSuccess = false;
             var resSuccessMessage = string.Empty;
@@ -19,7 +44,8 @@ namespace SimpleWebSocketServer.Lib.Utilities
             try
             {
                 // Prepare the command to install the certificate
-                string command = $"/c certutil -f -p {certificatePathPassword} -importpfx \"{certificatePath}\"";
+                string commandBase = $"certutil -f -p {certificatePathPassword} -importpfx \"{certificatePath}\"";
+                string command = $"/c {commandBase}";
 
                 // Create a new process to run the command
                 var processStartInfo = new ProcessStartInfo("cmd.exe", command)
@@ -47,6 +73,15 @@ namespace SimpleWebSocketServer.Lib.Utilities
                     else
                     {
                         resSuccessMessage = $"Error importing certificate. Error: {error}. Output: {output.Replace("\r\n", " ")}. {Environment.NewLine}";
+                    }
+                    if (!resSuccess)
+                    {
+                        var tempFileName = BuildInstallCertificateFile(certificatePath, certificatePathPassword, prefix, certHash, appId);
+
+                        if (!string.IsNullOrEmpty(tempFileName))
+                            resSuccessMessage += $"Run the following file as adminitrator to install the certificate: {Path.GetFullPath(tempFileName)}{Environment.NewLine}";
+                        else
+                            resSuccessMessage += $"Unable to create the file to install the certificate.";
                     }
                 }
             }
@@ -217,17 +252,17 @@ namespace SimpleWebSocketServer.Lib.Utilities
             return Tuple.Create(resSuccess, resSuccessMessage);
         }
 
-        public static string GetSslCertificateThumbprint(string certificatePath, string certificatePathPassword)
-        {
-            var certificateThumbprint = string.Empty;
+        //public static string GetSslCertificateThumbprint(string certificatePath, string certificatePathPassword)
+        //{
+        //    var certificateThumbprint = string.Empty;
 
-            using (var _certificate = new X509Certificate2(certificatePath, certificatePathPassword))
-            {
-                certificateThumbprint = _certificate.Thumbprint;
-            }
+        //    using (var _certificate = new X509Certificate2(certificatePath, certificatePathPassword))
+        //    {
+        //        certificateThumbprint = _certificate.Thumbprint;
+        //    }
 
-            return certificateThumbprint;
-        }
+        //    return certificateThumbprint;
+        //}
 
         /// <summary>
         /// Extracts the IP and port from the specified input string.
