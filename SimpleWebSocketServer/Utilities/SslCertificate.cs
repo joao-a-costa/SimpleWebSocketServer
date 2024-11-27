@@ -15,12 +15,13 @@ namespace SimpleWebSocketServer.Lib.Utilities
             var ipPort = GetIpAndPort(prefix);
 
             string commandBase =
+                $"chcp 65001{Environment.NewLine}" +
                 $"certutil -f -p {certificatePathPassword} -importpfx \"{Path.GetFullPath(certificatePath)}\"{Environment.NewLine}" +
                 $"netsh http delete sslcert ipport={ipPort.ip}:{ipPort.port}{Environment.NewLine}" +
                 $"netsh http add sslcert ipport={ipPort.ip}:{ipPort.port} certhash={certHash} appid={{{appId}}}{Environment.NewLine}" +
                 $"pause";
 
-            var tempFileName = Guid.NewGuid().ToString() + ".bat";
+            var tempFileName = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".bat");
 
             if (File.Exists(tempFileName))
                 File.Delete(tempFileName);
