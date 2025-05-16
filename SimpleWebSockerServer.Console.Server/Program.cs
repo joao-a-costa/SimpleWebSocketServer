@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace SimpleWebSocketServer.Console.Server
@@ -29,6 +31,7 @@ namespace SimpleWebSocketServer.Console.Server
         /// The flag indicating whether to use SSL.
         /// </summary>
         private static bool _useSsl = true;
+        private static List<Guid> _clients = new List<Guid>();
 
         #endregion
 
@@ -72,7 +75,7 @@ namespace SimpleWebSocketServer.Console.Server
                 // Process the JSON input
                 try
                 {
-                    await server.SendMessageToClient(input);
+                    await server.SendMessageToClient(_clients.FirstOrDefault(), input);
                 }
                 catch (Exception ex)
                 {
@@ -110,10 +113,13 @@ namespace SimpleWebSocketServer.Console.Server
 
             try
             {
+                server.ClientConnected += Server_ClientConnected;
+                server.ClientDisconnected += Server_ClientDisconnected;
+
                 System.Console.WriteLine(_MessageEnterJSONCommand);
 
                 if (_useSsl)
-                    await server.InstallCertificate(certificateTempPath, certificateTempPathPassword);
+                    await server.InstallCertificate(certificateTempPath, certificateTempPathPassword, string.Empty, string.Empty);
 
                 // Start the WebSocket server asynchronously
                 Task serverTask = server.Start();
@@ -144,6 +150,21 @@ namespace SimpleWebSocketServer.Console.Server
 
             System.Console.WriteLine(_MessagePressAnyKeyToExit);
             System.Console.ReadKey();
+        }
+
+        private static void Server_ClientDisconnected(object sender, (Guid clientId, string message) e)
+        {
+            if (_clients.Contains(e.clientId))
+            {
+                _clients.Remove(e.clientId);
+            }
+            System.Console.WriteLine($"Client disconnected: {e.clientId}");
+        }
+
+        private static void Server_ClientConnected(object sender, (Guid, string) e)
+        {
+            _clients.Add(e.Item1);
+            System.Console.WriteLine($"Client connected: {e.Item1}");
         }
     }
 }
