@@ -4,9 +4,8 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
-using System.Security.Cryptography.X509Certificates;
-using System.Diagnostics;
 using SimpleWebSocketServer.Lib.Utilities;
+using System.Collections.Concurrent;
 
 namespace SimpleWebSocketServer
 {
@@ -16,8 +15,6 @@ namespace SimpleWebSocketServer
 
         private const string _MessageServerStarted = "Server started";
         private const string _MessageServerStop = "Server stop";
-        private const string _MessageClientConnected = "WebSocket connected";
-        private const string _MessageClientDisconnected = "WebSocket disconnected";
         private const string _MessageSentMessageToClient = "Sent message to client";
         private const string _MessageWebSocketError = "WebSocket error";
         private const string _MessageWebSocketConnectionClosedByClient = "WebSocket connection closed by client";
@@ -43,9 +40,9 @@ namespace SimpleWebSocketServer
         /// </summary>
         private readonly HttpListener _httpListener;
         /// <summary>
-        /// The WebSocket object to handle WebSocket communication
+        /// The WebSocket objects to handle WebSocket communication
         /// </summary>
-        private WebSocket _webSocket;
+        private readonly ConcurrentDictionary<Guid, WebSocket> _clients = new ConcurrentDictionary<Guid, WebSocket>();
 
         #endregion
 
@@ -58,15 +55,15 @@ namespace SimpleWebSocketServer
         /// <summary>
         /// Define an event to be raised when a message is received
         /// </summary>
-        public event EventHandler<string> MessageReceived;
+        public event EventHandler<(Guid clientId, string message)> MessageReceived;
         /// <summary>
         /// Define an event to be raised when a client is connected
         /// </summary>
-        public event EventHandler<string> ClientConnected;
+        public event EventHandler<(Guid, string)> ClientConnected;
         /// <summary>
         /// Define an event to be raised when a client is disconnected
         /// </summary>
-        public event EventHandler<string> ClientDisconnected;
+        public event EventHandler<(Guid clientId, string message)> ClientDisconnected;
         /// <summary>
         /// Define an event to be raised when a message related to installing a certificate is received
         /// </summary>
@@ -119,7 +116,8 @@ namespace SimpleWebSocketServer
                     HttpListenerContext context = await _httpListener.GetContextAsync();
                     if (context.Request.IsWebSocketRequest)
                     {
-                        await ProcessWebSocketRequest(context);
+                        // Process the WebSocket request in a separate task
+                        _ = Task.Run(() => ProcessWebSocketRequest(context));
                     }
                     else
                     {
@@ -152,8 +150,15 @@ namespace SimpleWebSocketServer
         /// <returns>The task to stop the server</returns>
         public async Task Stop()
         {
-            if (_webSocket != null)
-                await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, _MessageClosing, CancellationToken.None);
+            foreach (var client in _clients.Values)
+            {
+                if (client.State == WebSocketState.Open)
+                {
+                    await client.CloseAsync(WebSocketCloseStatus.NormalClosure, _MessageClosing, CancellationToken.None);
+                    client.Dispose();
+                }
+            }
+            _clients.Clear();
 
             if (IsStarted)
             {
@@ -169,12 +174,14 @@ namespace SimpleWebSocketServer
         /// </summary>
         /// <param name="message">The message to send</param>
         /// <returns>The task to send the message</returns>
-        public async Task SendMessageToClient(string message)
+        public async Task SendMessageToClient(Guid clientId, string message)
         {
-            if (_webSocket?.State == WebSocketState.Open)
+            var messageBytes = Encoding.UTF8.GetBytes(message);
+            var client = _clients[clientId];
+
+            if (client.State == WebSocketState.Open)
             {
-                byte[] messageBytes = Encoding.UTF8.GetBytes(message);
-                await _webSocket.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                await client.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, CancellationToken.None);
                 Log($"{_MessageSentMessageToClient}: {message}");
             }
             else
@@ -234,7 +241,7 @@ namespace SimpleWebSocketServer
         /// Method to log messages to the console
         /// </summary>
         /// <param name="message"></param>
-        private static void Log(string message)
+        public static void Log(string message)
         {
             Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]{message}");
         }
@@ -246,41 +253,67 @@ namespace SimpleWebSocketServer
         /// <returns>The task to process the WebSocket request</returns>
         private async Task ProcessWebSocketRequest(HttpListenerContext context)
         {
-            HttpListenerWebSocketContext webSocketContext = null;
+            var clientId = Guid.NewGuid();
+            WebSocket webSocket = null;
 
             try
             {
-                webSocketContext = await context.AcceptWebSocketAsync(subProtocol: null);
-                _webSocket = webSocketContext.WebSocket;
+                var webSocketContext = await context.AcceptWebSocketAsync(null);
+                webSocket = webSocketContext.WebSocket;
+                _clients[clientId] = webSocket;
 
-                // Raise the event for client connected
-                OnClientConnected(_MessageClientConnected);
+                OnClientConnected(clientId, $"Client {clientId} connected");
 
-                // Start echoing messages
-                var receiveTask = Task.Run(() => ReceiveMessagesFromClient(_webSocket));
-
-                // Wait for both tasks to complete
-                await Task.WhenAny(receiveTask);
+                await ReceiveMessagesFromClient(clientId, webSocket);
             }
             catch (Exception ex)
             {
-                context.Response.StatusCode = 500;
-                context.Response.Close();
                 Log($"{_MessageWebSocketError}: {ex.Message}");
             }
             finally
             {
-                if (webSocketContext != null)
+                if (webSocket != null && webSocket.State == WebSocketState.Open)
                 {
-                    if (webSocketContext.WebSocket.State == WebSocketState.Open)
-                    {
-                        await webSocketContext.WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, _MessageClosing, CancellationToken.None);
-                    }
-                    webSocketContext.WebSocket.Dispose();
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, _MessageClosing, CancellationToken.None);
                 }
-
-                OnClientDisconnected(_MessageClientDisconnected);
+                _clients.TryRemove(clientId, out _);
+                OnClientDisconnected(clientId, $"Client {clientId} disconnected");
             }
+            //HttpListenerWebSocketContext webSocketContext = null;
+
+            //try
+            //{
+            //    webSocketContext = await context.AcceptWebSocketAsync(subProtocol: null);
+            //    _webSocket = webSocketContext.WebSocket;
+
+            //    // Raise the event for client connected
+            //    OnClientConnected(_MessageClientConnected);
+
+            //    // Start echoing messages
+            //    var receiveTask = Task.Run(() => ReceiveMessagesFromClient(_webSocket));
+
+            //    // Wait for both tasks to complete
+            //    await Task.WhenAny(receiveTask);
+            //}
+            //catch (Exception ex)
+            //{
+            //    context.Response.StatusCode = 500;
+            //    context.Response.Close();
+            //    Log($"{_MessageWebSocketError}: {ex.Message}");
+            //}
+            //finally
+            //{
+            //    if (webSocketContext != null)
+            //    {
+            //        if (webSocketContext.WebSocket.State == WebSocketState.Open)
+            //        {
+            //            await webSocketContext.WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, _MessageClosing, CancellationToken.None);
+            //        }
+            //        webSocketContext.WebSocket.Dispose();
+            //    }
+
+            //    OnClientDisconnected(_MessageClientDisconnected);
+            //}
         }
 
         /// <summary>
@@ -288,11 +321,13 @@ namespace SimpleWebSocketServer
         /// </summary>
         /// <param name="webSocket"></param>
         /// <returns></returns>
-        private async Task ReceiveMessagesFromClient(WebSocket webSocket)
+        private async Task ReceiveMessagesFromClient(Guid clientId, WebSocket webSocket)
         {
             try
             {
                 byte[] buffer = new byte[BufferSize];
+
+                var _webSocket = _clients[clientId];
 
                 while (_webSocket?.State == WebSocketState.Open)
                 {
@@ -318,7 +353,7 @@ namespace SimpleWebSocketServer
                     }
 
                     // Raise the event for message received
-                    OnMessageReceived(Encoding.UTF8.GetString(buffer, 0, result.Count));
+                    OnMessageReceived(clientId, Encoding.UTF8.GetString(buffer, 0, result.Count));
                 }
             }
             catch (Exception ex)
@@ -356,30 +391,30 @@ namespace SimpleWebSocketServer
         /// Method to raise the MessageReceived event
         /// </summary>
         /// <param name="message"></param>
-        protected virtual void OnMessageReceived(string message)
+        protected virtual void OnMessageReceived(Guid clientId, string message)
         {
-            Log(message);
-            MessageReceived?.Invoke(this, message);
+            Log($"ClientID: {clientId}. Message:{message}");
+            MessageReceived?.Invoke(this, (clientId, message));
         }
 
         /// <summary>
         /// Method to raise the ClientConnected event
         /// </summary>
         /// <param name="message"></param>
-        protected virtual void OnClientConnected(string message)
+        protected virtual void OnClientConnected(Guid clientId, string message)
         {
-            Log(message);
-            ClientConnected?.Invoke(this, message);
+            Log($"ClientID: {clientId}. Message:{message}");
+            ClientConnected?.Invoke(this, (clientId, message));
         }
 
         /// <summary>
         /// Method to raise the ClientDisconnected event
         /// </summary>
         /// <param name="message"></param>
-        protected virtual void OnClientDisconnected(string message)
+        protected virtual void OnClientDisconnected(Guid clientId, string message)
         {
-            Log(message);
-            ClientDisconnected?.Invoke(this, message);
+            Log($"ClientID: {clientId}. Message:{message}");
+            ClientDisconnected?.Invoke(this, (clientId, message));
         }
 
         #endregion
