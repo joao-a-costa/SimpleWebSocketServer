@@ -348,7 +348,7 @@ namespace SimpleWebSocketServer
                     {
                         // Close the WebSocket connection
                         await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, _MessageClosing, CancellationToken.None);
-                        Log(_MessageWebSocketConnectionClosedByClient);
+                        //Log(_MessageWebSocketConnectionClosedByClient);
                         break;
                     }
 
