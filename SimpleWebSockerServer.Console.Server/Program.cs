@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using NLog;
 
 namespace SimpleWebSocketServer.Console.Server
 {
@@ -32,6 +33,7 @@ namespace SimpleWebSocketServer.Console.Server
         /// </summary>
         private static bool _useSsl = true;
         private static List<Guid> _clients = new List<Guid>();
+        private static readonly ILogger _logger = LogManager.GetCurrentClassLogger();
 
         #endregion
 
@@ -103,12 +105,12 @@ namespace SimpleWebSocketServer.Console.Server
                 certificateTempPath = GetCertificateTempPath();
                 certificateTempPathPassword = "mypass";
 
-                server = new WebSocketServer(prefix);
+                server = new WebSocketServer(_logger, prefix);
             }
             else
             {
                 
-                server = new WebSocketServer(prefix);
+                server = new WebSocketServer(_logger, prefix);
             }
 
             try
