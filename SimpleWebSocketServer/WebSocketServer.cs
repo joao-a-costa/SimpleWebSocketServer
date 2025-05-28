@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using SimpleWebSocketServer.Lib.Utilities;
 using System.Collections.Concurrent;
+using NLog;
 
 namespace SimpleWebSocketServer
 {
@@ -17,7 +18,6 @@ namespace SimpleWebSocketServer
         private const string _MessageServerStop = "Server stop";
         private const string _MessageSentMessageToClient = "Sent message to client";
         private const string _MessageWebSocketError = "WebSocket error";
-        private const string _MessageWebSocketConnectionClosedByClient = "WebSocket connection closed by client";
         private const string _MessageClosing = "Closing";
         private const string _MessageClosingDueToError = "Closing due to error";
         private const string _MessageErrorReceivingMessageFromClient = "Error receiving message from client";
@@ -43,6 +43,10 @@ namespace SimpleWebSocketServer
         /// The WebSocket objects to handle WebSocket communication
         /// </summary>
         private readonly ConcurrentDictionary<Guid, WebSocket> _clients = new ConcurrentDictionary<Guid, WebSocket>();
+        /// <summary>
+        /// Logger instance for logging messages
+        /// </summary>
+        private readonly ILogger _logger;
 
         #endregion
 
@@ -88,8 +92,9 @@ namespace SimpleWebSocketServer
         /// Constructor to initialize the WebSocket server
         /// </summary>
         /// <param name="prefix"></param>
-        public WebSocketServer(string prefix)
+        public WebSocketServer(ILogger logger, string prefix)
         {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _prefix = prefix;
 
             _httpListener = new HttpListener();
@@ -128,7 +133,7 @@ namespace SimpleWebSocketServer
                 catch (HttpListenerException ex)
                 {
                     // Handle the exception (e.g., log it or notify about the error)
-                    Console.WriteLine($"{_MessageHttpListenerException}: {ex.Message}");
+                    Log($"{_MessageHttpListenerException}: {ex.Message}");
                     break; // Exit the loop if the listener stops
                 }
                 catch (TaskCanceledException)
@@ -139,7 +144,7 @@ namespace SimpleWebSocketServer
                 catch (Exception ex)
                 {
                     // Handle other exceptions
-                    Console.WriteLine($"{_MessageException}: {ex.Message}");
+                    Log($"{_MessageException}: {ex.Message}");
                 }
             }
         }
@@ -190,7 +195,7 @@ namespace SimpleWebSocketServer
             }
         }
 
-        public static async Task<bool> InstallCertificate(string prefix, string certificatePath, string certificatePassword, string appId,
+        public async Task<bool> InstallCertificate(string prefix, string certificatePath, string certificatePassword, string appId,
             string certHash)
         {
             var res = false;
@@ -219,7 +224,7 @@ namespace SimpleWebSocketServer
                 catch(Exception ex)
                 {
                     InstallCertificateMessage?.Invoke(null, $"Installing certificate error. {_MessageException}: {ex.Message}");
-                    Console.WriteLine($"{_MessageException}: {ex.Message}");
+                    _logger.Error(ex, $"{_MessageException}: {ex.Message}");
                 }
                 finally
                 {
@@ -241,9 +246,9 @@ namespace SimpleWebSocketServer
         /// Method to log messages to the console
         /// </summary>
         /// <param name="message"></param>
-        public static void Log(string message)
+        public void Log(string message)
         {
-            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]{message}");
+            _logger.Info(message);
         }
 
         /// <summary>
